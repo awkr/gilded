@@ -6,6 +6,8 @@ set(CMAKE_CXX_STANDARD 20)
 find_package(Vulkan REQUIRED)
 message(STATUS "vulkan version: ${Vulkan_VERSION}")
 
+add_subdirectory(external/glfw)
+
 add_executable(gilded main.cpp)
 
-target_link_libraries(gilded PRIVATE Vulkan::Vulkan)
+target_link_libraries(gilded PRIVATE Vulkan::Vulkan glfw)
