@@ -1,8 +1,8 @@
 #include <cassert>
 #include <iostream>
 #include <vector>
-#include <GLFW/glfw3.h>
 #include <vulkan/vulkan.h>
+#include <GLFW/glfw3.h>
 
 struct Config {
     uint32_t width;
@@ -70,6 +70,7 @@ struct VkContext {
     PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessengerEXT;
     PFN_vkDestroyDebugUtilsMessengerEXT vkDestroyDebugUtilsMessengerEXT;
     VkDebugUtilsMessengerEXT debug_utils_messenger;
+    VkSurfaceKHR surface;
 };
 
 void create_vk_instance(VkContext *context) {
@@ -131,19 +132,22 @@ void create_vk_instance(VkContext *context) {
                                             &context->debug_utils_messenger);
 }
 
-void create_vk_surface() {
+void create_vk_surface(VkContext *context, GLFWwindow *window) {
+    VkResult result = glfwCreateWindowSurface(context->instance, window, nullptr, &context->surface);
+    assert(result == VK_SUCCESS);
 }
 
 void create_vk_device() {
 }
 
-void create_device(VkContext *context) {
+void create_device(VkContext *context, GLFWwindow *window) {
     create_vk_instance(context);
-    create_vk_surface();
+    create_vk_surface(context, window);
     create_vk_device();
 }
 
 void vk_cleanup(VkContext *context) {
+    vkDestroySurfaceKHR(context->instance, context->surface, nullptr);
     context->vkDestroyDebugUtilsMessengerEXT(context->instance, context->debug_utils_messenger, nullptr);
     vkDestroyInstance(context->instance, nullptr);
 }
@@ -152,7 +156,7 @@ void run(const Config &config) {
     GLFWwindow *window;
     create_window(config, &window);
     VkContext context{};
-    create_device(&context);
+    create_device(&context, window);
     init_input(window);
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
