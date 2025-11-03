@@ -1,6 +1,8 @@
 #include <cassert>
 #include <iostream>
+#include <vector>
 #include <GLFW/glfw3.h>
+#include <vulkan/vulkan.h>
 
 struct Config {
     uint32_t width;
@@ -52,14 +54,111 @@ void init_input(GLFWwindow *window) {
 void poll_events(GLFWwindow *window) {
 }
 
+#define LOAD_INSTANCE_PROC(instance, name) (PFN_##name)vkGetInstanceProcAddr(instance, #name);
+
+VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
+    VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
+    VkDebugUtilsMessageTypeFlagsEXT message_type,
+    const VkDebugUtilsMessengerCallbackDataEXT *callback_data,
+    void *pUserData) {
+    std::cerr << "validation layer: " << callback_data->pMessage << std::endl;
+    return VK_FALSE;
+}
+
+struct VkContext {
+    VkInstance instance;
+    PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessengerEXT;
+    PFN_vkDestroyDebugUtilsMessengerEXT vkDestroyDebugUtilsMessengerEXT;
+    VkDebugUtilsMessengerEXT debug_utils_messenger;
+};
+
+void create_vk_instance(VkContext *context) {
+    int vk_supported = glfwVulkanSupported();
+    assert(vk_supported == GLFW_TRUE);
+
+    uint32_t glfw_extension_count = 0;
+    const char **glfw_extensions = glfwGetRequiredInstanceExtensions(&glfw_extension_count);
+
+    std::vector<const char *> extensions;
+    for (uint32_t i = 0; i < glfw_extension_count; i++) {
+        extensions.push_back(glfw_extensions[i]);
+    }
+    extensions.push_back("VK_KHR_get_physical_device_properties2");
+    extensions.push_back("VK_EXT_debug_utils");
+
+    // describe the instance
+    VkInstanceCreateInfo instance_create_info{};
+    instance_create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    instance_create_info.enabledExtensionCount = extensions.size();
+    instance_create_info.ppEnabledExtensionNames = extensions.data();
+
+    std::vector<const char *> layers;
+    layers.push_back("VK_LAYER_KHRONOS_validation");
+
+    instance_create_info.enabledLayerCount = layers.size();
+    instance_create_info.ppEnabledLayerNames = layers.data();
+
+    VkDebugUtilsMessengerCreateInfoEXT debug_create_info{};
+    debug_create_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+    debug_create_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
+                                        VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+                                        VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+    debug_create_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+                                    VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+                                    VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+    debug_create_info.pfnUserCallback = debug_callback;
+
+    instance_create_info.pNext = &debug_create_info;
+
+    // describe the application
+    VkApplicationInfo app_info{};
+    app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    app_info.apiVersion = VK_API_VERSION_1_3;
+    app_info.pApplicationName = "Gilded Application";
+    app_info.applicationVersion = VK_MAKE_VERSION(0, 0, 1);
+    app_info.pEngineName = "Gilded Engine";
+    app_info.engineVersion = VK_MAKE_VERSION(0, 0, 1);
+
+    instance_create_info.pApplicationInfo = &app_info;
+
+    VkResult result = vkCreateInstance(&instance_create_info, nullptr, &context->instance);
+    assert(result == VK_SUCCESS);
+
+    context->vkCreateDebugUtilsMessengerEXT = LOAD_INSTANCE_PROC(context->instance, vkCreateDebugUtilsMessengerEXT);
+    context->vkDestroyDebugUtilsMessengerEXT = LOAD_INSTANCE_PROC(context->instance, vkDestroyDebugUtilsMessengerEXT);
+
+    context->vkCreateDebugUtilsMessengerEXT(context->instance, &debug_create_info, nullptr,
+                                            &context->debug_utils_messenger);
+}
+
+void create_vk_surface() {
+}
+
+void create_vk_device() {
+}
+
+void create_device(VkContext *context) {
+    create_vk_instance(context);
+    create_vk_surface();
+    create_vk_device();
+}
+
+void vk_cleanup(VkContext *context) {
+    context->vkDestroyDebugUtilsMessengerEXT(context->instance, context->debug_utils_messenger, nullptr);
+    vkDestroyInstance(context->instance, nullptr);
+}
+
 void run(const Config &config) {
     GLFWwindow *window;
     create_window(config, &window);
+    VkContext context{};
+    create_device(&context);
     init_input(window);
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
         poll_events(window);
     }
+    vk_cleanup(&context);
     destroy_window(window);
 }
 
