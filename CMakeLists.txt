@@ -8,6 +8,6 @@ message(STATUS "vulkan version: ${Vulkan_VERSION}")
 
 add_subdirectory(external/glfw)
 
-add_executable(gilded main.cpp)
+add_executable(gilded main.cpp vk.cc)
 
 target_link_libraries(gilded PRIVATE Vulkan::Vulkan glfw)

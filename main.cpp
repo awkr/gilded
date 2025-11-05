@@ -1,7 +1,7 @@
+#include "vk.h"
 #include <cassert>
 #include <iostream>
 #include <vector>
-#include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
 
 struct Config {
@@ -54,8 +54,6 @@ void init_input(GLFWwindow *window) {
 void poll_events(GLFWwindow *window) {
 }
 
-#define LOAD_INSTANCE_PROC(instance, name) (PFN_##name)vkGetInstanceProcAddr(instance, #name);
-
 VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
     VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
     VkDebugUtilsMessageTypeFlagsEXT message_type,
@@ -74,17 +72,6 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
     std::cerr << callback_data->pMessage << std::endl;
     return VK_FALSE;
 }
-
-struct VkContext {
-    VkInstance instance;
-    PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessengerEXT;
-    PFN_vkDestroyDebugUtilsMessengerEXT vkDestroyDebugUtilsMessengerEXT;
-    VkDebugUtilsMessengerEXT debug_utils_messenger;
-    VkSurfaceKHR surface;
-    VkPhysicalDevice physical_device;
-    uint32_t queue_family_index;
-    VkDevice device;
-};
 
 void create_vk_instance(VkContext *context) {
     int vk_supported = glfwVulkanSupported();
@@ -252,6 +239,15 @@ void create_vk_device(VkContext *context) {
 
     result = vkCreateDevice(context->physical_device, &device_create_info, nullptr, &context->device);
     assert(result == VK_SUCCESS);
+
+    context->vkSetDebugUtilsObjectNameEXT = LOAD_DEVICE_PROC(context->device, vkSetDebugUtilsObjectNameEXT);
+
+    vkGetDeviceQueue(context->device, context->queue_family_index, 0, &context->queue);
+    assert(context->queue);
+
+    set_object_name(context, context->device, VK_OBJECT_TYPE_DEVICE, "my_vk_device");
+    set_object_name(context, context->queue, VK_OBJECT_TYPE_QUEUE, "my_vk_queue");
+    set_object_name(context, context->surface, VK_OBJECT_TYPE_SURFACE_KHR, "my_vk_surface");
 }
 
 void create_device(VkContext *context, GLFWwindow *window) {
