@@ -182,14 +182,37 @@ void create_command_pool(VkContext *context, VkCommandPool *command_pool) {
     set_object_name(context, *command_pool, VK_OBJECT_TYPE_COMMAND_POOL, "my_vk_command_pool");
 }
 
+void create_command_buffers(VkContext *context) {
+    VkCommandBufferAllocateInfo command_buffer_allocate_info{};
+    command_buffer_allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    command_buffer_allocate_info.commandPool = context->command_pool;
+    command_buffer_allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    command_buffer_allocate_info.commandBufferCount = MAX_FRAMES_IN_FLIGHT;
+
+    context->command_buffers.resize(command_buffer_allocate_info.commandBufferCount);
+    VkResult result = vkAllocateCommandBuffers(context->device, &command_buffer_allocate_info,
+                                               context->command_buffers.data());
+    assert(result == VK_SUCCESS);
+
+    for (size_t i = 0; i < context->command_buffers.size(); ++i) {
+        set_object_name(context, context->command_buffers[i], VK_OBJECT_TYPE_COMMAND_BUFFER,
+                        ("my_command_buffer_" + std::to_string(i)).c_str());
+    }
+}
+}
+
 void init_vk(VkContext *context, GLFWwindow *window) {
     create_vk_instance(context);
     create_vk_surface(context, window);
     create_vk_device(context);
     create_command_pool(context, &context->command_pool);
+    create_command_buffers(context);
 }
 
 void cleanup_vk(VkContext *context) {
+    vkFreeCommandBuffers(context->device, context->command_pool, context->command_buffers.size(),
+                         context->command_buffers.data());
+    context->command_buffers.clear();
     vkDestroyCommandPool(context->device, context->command_pool, nullptr);
     vkDestroyDevice(context->device, nullptr);
     vkDestroySurfaceKHR(context->instance, context->surface, nullptr);

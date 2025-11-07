@@ -21,6 +21,7 @@ struct VkContext {
     PFN_vkSetDebugUtilsObjectNameEXT vkSetDebugUtilsObjectNameEXT;
     VkQueue queue;
     VkCommandPool command_pool;
+    std::vector<VkCommandBuffer> command_buffers;
 };
 
 void create_vk_instance(VkContext *context);
@@ -30,6 +31,8 @@ void create_vk_surface(VkContext *context, GLFWwindow *window);
 void create_vk_device(VkContext *context);
 
 void create_command_pool(VkContext *context, VkCommandPool *command_pool);
+
+void create_command_buffers(VkContext *context);
 
 void init_vk(VkContext *context, GLFWwindow *window);
 
